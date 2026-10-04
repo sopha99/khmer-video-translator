@@ -1,0 +1,252 @@
+<!DOCTYPE html>
+<html lang="km">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Monthly Planner - កម្មវិធីរៀបចំផែនការប្រចាំខែ</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Kantumruy+Pro:wght@300;400;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Kantumruy Pro', sans-serif;
+            background-color: #f8fafc;
+        }
+        .glass-morphism {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+    </style>
+</head>
+<body class="p-4 md:p-8">
+    <div id="app" class="max-w-5xl mx-auto">
+        <!-- Header -->
+        <header class="flex flex-col md:flex-row justify-between items-center mb-8 gap-4">
+            <div>
+                <h1 class="text-3xl font-bold text-indigo-900">ផែនការប្រចាំខែរបស់ខ្ញុំ</h1>
+                <p class="text-slate-500" id="current-month-display"></p>
+            </div>
+            <div class="flex gap-2">
+                <button onclick="clearAllData()" class="px-4 py-2 bg-red-50 text-red-600 rounded-lg hover:bg-red-100 transition text-sm">សម្អាតទិន្នន័យទាំងអស់</button>
+            </div>
+        </header>
+
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+            <!-- Left Column: Goals & Stats -->
+            <div class="lg:col-span-1 space-y-6">
+                <!-- Monthly Goals Section -->
+                <div class="glass-morphism p-6 rounded-2xl shadow-sm border border-slate-200">
+                    <h2 class="text-xl font-bold text-slate-800 mb-4 flex items-center">
+                        <span class="mr-2">🎯</span> គោលដៅធំប្រចាំខែ
+                    </h2>
+                    <div class="flex mb-4">
+                        <input type="text" id="goal-input" placeholder="បញ្ចូលគោលដៅ..." class="w-full px-3 py-2 border border-slate-200 rounded-l-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm">
+                        <button onclick="addGoal()" class="bg-indigo-600 text-white px-4 py-2 rounded-r-lg hover:bg-indigo-700 transition">+</button>
+                    </div>
+                    <ul id="goals-list" class="space-y-3">
+                        <!-- Goals injected here -->
+                    </ul>
+                </div>
+
+                <!-- Progress Tracker -->
+                <div class="glass-morphism p-6 rounded-2xl shadow-sm border border-slate-200 bg-indigo-900 text-white">
+                    <h2 class="text-xl font-bold mb-2">វឌ្ឍនភាពសរុប</h2>
+                    <div class="w-full bg-indigo-800 rounded-full h-4 mt-4">
+                        <div id="progress-bar" class="bg-emerald-400 h-4 rounded-full transition-all duration-500" style="width: 0%"></div>
+                    </div>
+                    <p class="mt-2 text-sm text-indigo-200" id="progress-text">សម្រេចបាន 0% នៃកិច្ចការទាំងអស់</p>
+                </div>
+            </div>
+
+            <!-- Right Column: Task Management -->
+            <div class="lg:col-span-2">
+                <div class="glass-morphism p-6 rounded-2xl shadow-sm border border-slate-200">
+                    <div class="flex justify-between items-center mb-6">
+                        <h2 class="text-xl font-bold text-slate-800">បញ្ជីកិច្ចការលម្អិត</h2>
+                        <select id="filter-select" onchange="renderTasks()" class="text-sm border-none bg-slate-100 rounded-md p-1 focus:ring-0">
+                            <option value="all">ទាំងអស់</option>
+                            <option value="pending">មិនទាន់ធ្វើ</option>
+                            <option value="completed">បានបញ្ចប់</option>
+                        </select>
+                    </div>
+
+                    <!-- Add Task Form -->
+                    <div class="grid grid-cols-1 md:grid-cols-4 gap-2 mb-6">
+                        <input type="text" id="task-name" placeholder="ឈ្មោះកិច្ចការ" class="md:col-span-2 px-3 py-2 border border-slate-200 rounded-lg text-sm">
+                        <input type="date" id="task-date" class="px-3 py-2 border border-slate-200 rounded-lg text-sm">
+                        <button onclick="addTask()" class="bg-emerald-600 text-white px-4 py-2 rounded-lg hover:bg-emerald-700 transition font-bold text-sm">បន្ថែម</button>
+                    </div>
+
+                    <div class="overflow-hidden rounded-xl border border-slate-100">
+                        <table class="w-full text-left text-sm">
+                            <thead class="bg-slate-50 text-slate-600">
+                                <tr>
+                                    <th class="px-4 py-3 font-semibold">ស្ថានភាព</th>
+                                    <th class="px-4 py-3 font-semibold">កិច្ចការ</th>
+                                    <th class="px-4 py-3 font-semibold">កាលបរិច្ឆេទ</th>
+                                    <th class="px-4 py-3 font-semibold">សកម្មភាព</th>
+                                </tr>
+                            </thead>
+                            <tbody id="tasks-body" class="divide-y divide-slate-100">
+                                <!-- Tasks injected here -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // State Management
+        let state = {
+            goals: JSON.parse(localStorage.getItem('planner_goals')) || [],
+            tasks: JSON.parse(localStorage.getItem('planner_tasks')) || []
+        };
+
+        // Initialize
+        window.onload = () => {
+            const months = ["មករា", "កុម្ភៈ", "មីនា", "មេសា", "ឧសភា", "មិថុនា", "កក្កដា", "សីហា", "កញ្ញា", "តុលា", "វិច្ឆិកា", "ធ្នូ"];
+            const now = new Date();
+            document.getElementById('current-month-display').innerText = `ខែ${months[now.getMonth()]} ឆ្នាំ ${now.getFullYear()}`;
+            renderAll();
+        };
+
+        function saveData() {
+            localStorage.setItem('planner_goals', JSON.stringify(state.goals));
+            localStorage.setItem('planner_tasks', JSON.stringify(state.tasks));
+            updateProgress();
+        }
+
+        // Goals Logic
+        function addGoal() {
+            const input = document.getElementById('goal-input');
+            if (!input.value.trim()) return;
+            state.goals.push({ id: Date.now(), text: input.value, completed: false });
+            input.value = '';
+            saveData();
+            renderGoals();
+        }
+
+        function toggleGoal(id) {
+            state.goals = state.goals.map(g => g.id === id ? {...g, completed: !g.completed} : g);
+            saveData();
+            renderGoals();
+        }
+
+        function deleteGoal(id) {
+            state.goals = state.goals.filter(g => g.id !== id);
+            saveData();
+            renderGoals();
+        }
+
+        // Tasks Logic
+        function addTask() {
+            const name = document.getElementById('task-name');
+            const date = document.getElementById('task-date');
+            
+            if (!name.value.trim() || !date.value) {
+                alert("សូមបំពេញព័ត៌មានឱ្យគ្រប់គ្រាន់");
+                return;
+            }
+
+            state.tasks.push({
+                id: Date.now(),
+                name: name.value,
+                date: date.value,
+                completed: false
+            });
+
+            name.value = '';
+            date.value = '';
+            saveData();
+            renderTasks();
+        }
+
+        function toggleTask(id) {
+            state.tasks = state.tasks.map(t => t.id === id ? {...t, completed: !t.completed} : t);
+            saveData();
+            renderTasks();
+        }
+
+        function deleteTask(id) {
+            state.tasks = state.tasks.filter(t => t.id !== id);
+            saveData();
+            renderTasks();
+        }
+
+        // Rendering Functions
+        function renderGoals() {
+            const list = document.getElementById('goals-list');
+            list.innerHTML = state.goals.map(goal => `
+                <li class="flex items-center justify-between group bg-slate-50 p-3 rounded-lg border border-slate-100">
+                    <div class="flex items-center gap-3">
+                        <input type="checkbox" ${goal.completed ? 'checked' : ''} onchange="toggleGoal(${goal.id})" class="w-4 h-4 text-indigo-600 rounded focus:ring-indigo-500">
+                        <span class="${goal.completed ? 'line-through text-slate-400' : 'text-slate-700'} text-sm">${goal.text}</span>
+                    </div>
+                    <button onclick="deleteGoal(${goal.id})" class="text-slate-300 hover:text-red-500 transition opacity-0 group-hover:opacity-100">✕</button>
+                </li>
+            `).join('');
+            if (state.goals.length === 0) list.innerHTML = '<p class="text-slate-400 text-xs text-center italic">មិនទាន់មានគោលដៅ...</p>';
+        }
+
+        function renderTasks() {
+            const filter = document.getElementById('filter-select').value;
+            const body = document.getElementById('tasks-body');
+            
+            let filteredTasks = state.tasks;
+            if (filter === 'pending') filteredTasks = state.tasks.filter(t => !t.completed);
+            if (filter === 'completed') filteredTasks = state.tasks.filter(t => t.completed);
+
+            // Sort by date
+            filteredTasks.sort((a, b) => new Date(a.date) - new Date(b.date));
+
+            body.innerHTML = filteredTasks.map(task => `
+                <tr class="hover:bg-slate-50 transition">
+                    <td class="px-4 py-4">
+                        <input type="checkbox" ${task.completed ? 'checked' : ''} onchange="toggleTask(${task.id})" class="w-5 h-5 text-emerald-600 rounded">
+                    </td>
+                    <td class="px-4 py-4 ${task.completed ? 'line-through text-slate-400' : 'text-slate-700'} font-medium">${task.name}</td>
+                    <td class="px-4 py-4 text-slate-500 text-xs">${task.date}</td>
+                    <td class="px-4 py-4">
+                        <button onclick="deleteTask(${task.id})" class="text-red-400 hover:text-red-600">លុប</button>
+                    </td>
+                </tr>
+            `).join('');
+            
+            if (filteredTasks.length === 0) {
+                body.innerHTML = '<tr><td colspan="4" class="px-4 py-8 text-center text-slate-400">មិនទាន់មានកិច្ចការក្នុងបញ្ជីនៅឡើយ</td></tr>';
+            }
+        }
+
+        function updateProgress() {
+            const total = state.tasks.length;
+            if (total === 0) {
+                document.getElementById('progress-bar').style.width = '0%';
+                document.getElementById('progress-text').innerText = 'ចាប់ផ្តើមបន្ថែមបញ្ជីកិច្ចការរបស់អ្នក';
+                return;
+            }
+            const completed = state.tasks.filter(t => t.completed).length;
+            const percent = Math.round((completed / total) * 100);
+            
+            document.getElementById('progress-bar').style.width = `${percent}%`;
+            document.getElementById('progress-text').innerText = `សម្រេចបាន ${percent}% (${completed}/${total}) នៃកិច្ចការទាំងអស់`;
+        }
+
+        function renderAll() {
+            renderGoals();
+            renderTasks();
+            updateProgress();
+        }
+
+        function clearAllData() {
+            if (confirm("តើអ្នកប្រាកដថាចង់លុបទិន្នន័យទាំងអស់មែនទេ?")) {
+                state.goals = [];
+                state.tasks = [];
+                saveData();
+                renderAll();
+            }
+        }
+    </script>
+</body>
+</html>
